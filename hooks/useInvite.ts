@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 const APP_SCHEME = 'tabmates'
-const WEB_BASE = 'https://tabmates.vercel.app'
+const WEB_BASE = 'https://tab-mates-sabyasachi-sarma-projects3.vercel.app'
 
 export function inviteUrl(token: string) {
   // Universal link for web; deep link for the app
