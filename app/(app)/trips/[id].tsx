@@ -106,7 +106,11 @@ export default function TripDetailScreen() {
           <Text style={styles.back}>← Trips</Text>
         </TouchableOpacity>
         <Text style={styles.title} numberOfLines={1}>{trip?.name ?? '...'}</Text>
-        <View style={{ width: 60 }} />
+        <TouchableOpacity
+          onPress={() => router.push({ pathname: '/(app)/trips/invite', params: { tripId: id } })}
+        >
+          <Text style={styles.inviteBtn}>Invite</Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -182,6 +186,7 @@ const styles = StyleSheet.create({
   },
   back: { fontSize: 16, color: '#1D9E75', width: 60 },
   title: { fontSize: 17, fontWeight: '600', color: '#1a1a1a', flex: 1, textAlign: 'center' },
+  inviteBtn: { fontSize: 15, color: '#1D9E75', fontWeight: '500', width: 60, textAlign: 'right' },
   statsRow: {
     flexDirection: 'row', padding: 16, gap: 8,
   },

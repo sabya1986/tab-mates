@@ -3,10 +3,11 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform, Alert
 } from 'react-native'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 
 export default function LoginScreen() {
+  const { pendingToken } = useLocalSearchParams<{ pendingToken?: string }>()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [otpSent, setOtpSent] = useState(false)
@@ -35,6 +36,9 @@ export default function LoginScreen() {
     setLoading(false)
     if (error) {
       Alert.alert('Error', error.message)
+    } else if (pendingToken) {
+      // Resume the invite flow after login
+      router.replace({ pathname: '/join', params: { token: pendingToken } })
     } else {
       router.replace('/(app)')
     }
