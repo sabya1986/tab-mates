@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase'
 type State = 'loading' | 'prompt_login' | 'joining' | 'success' | 'already_member' | 'error'
 
 export default function JoinScreen() {
-  const { token } = useLocalSearchParams<{ token: string }>()
+  const { token, name } = useLocalSearchParams<{ token: string; name?: string }>()
   const { session, loading: authLoading } = useAuthStore()
   const [state, setState] = useState<State>('loading')
   const [errorMsg, setErrorMsg] = useState('')
@@ -29,9 +29,7 @@ export default function JoinScreen() {
 
   async function tryJoin() {
     setState('joining')
-    console.log('[join] tryJoin token:', token)
     const result = await acceptInvite(token as string)
-    console.log('[join] acceptInvite result:', JSON.stringify(result))
 
     if (!result.success) {
       if (result.error === 'not_authenticated') {
@@ -41,6 +39,14 @@ export default function JoinScreen() {
       setState('error')
       setErrorMsg(result.error ?? 'Something went wrong.')
       return
+    }
+
+    // Save display name if the user provided one during sign-in
+    if (name?.trim()) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase.from('users').update({ name: name.trim() }).eq('id', user.id)
+      }
     }
 
     // Load trip name for a friendly success screen

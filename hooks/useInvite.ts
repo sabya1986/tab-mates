@@ -67,8 +67,6 @@ export async function acceptInvite(token: string): Promise<{
     .eq('token', token)
     .maybeSingle()
 
-  console.log('[acceptInvite] token:', token, 'invite:', JSON.stringify(invite), 'error:', JSON.stringify(inviteError))
-
   if (inviteError || !invite) {
     return { success: false, error: 'Invalid invite link' }
   }

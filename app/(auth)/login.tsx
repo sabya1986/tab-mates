@@ -11,6 +11,7 @@ import { useTheme, type Colors } from '../../lib/theme'
 export default function LoginScreen() {
   const { pendingToken } = useLocalSearchParams<{ pendingToken?: string }>()
   const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [linkSent, setLinkSent] = useState(false)
   const C = useTheme()
@@ -33,12 +34,18 @@ export default function LoginScreen() {
     if (!email.trim()) return
     setLoading(true)
     const WEB_BASE = 'https://tab-mates.vercel.app'
-    const redirectTo = pendingToken
-      ? `${WEB_BASE}/join?token=${pendingToken}`
-      : WEB_BASE
+    let redirectTo = WEB_BASE
+    if (pendingToken) {
+      const params = new URLSearchParams({ token: pendingToken })
+      if (name.trim()) params.set('name', name.trim())
+      redirectTo = `${WEB_BASE}/join?${params.toString()}`
+    }
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: redirectTo },
+      options: {
+        emailRedirectTo: redirectTo,
+        data: name.trim() ? { name: name.trim() } : undefined,
+      },
     })
     setLoading(false)
     if (error) {
@@ -60,6 +67,19 @@ export default function LoginScreen() {
 
           {!linkSent ? (
             <>
+              <Text style={styles.label}>Your name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder={pendingToken ? 'How should others see you?' : 'Display name (optional)'}
+                placeholderTextColor={C.textMuted}
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+                autoComplete="name"
+                textContentType="name"
+                returnKeyType="next"
+                accessibilityLabel="Your name"
+              />
               <Text style={styles.label}>Email address</Text>
               <TextInput
                 style={styles.input}
