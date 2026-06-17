@@ -94,6 +94,7 @@ export type Database = {
           created_at?: string
         }
         Update: {
+          paid_by?: string
           description?: string
           category?: string | null
           amount?: number

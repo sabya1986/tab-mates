@@ -9,8 +9,11 @@ type ExpensesStore = {
   loading: boolean
   fetchExpenses: (tripId: string) => Promise<void>
   addExpense: (params: AddExpenseParams) => Promise<boolean>
+  updateExpense: (params: UpdateExpenseParams) => Promise<boolean>
   deleteExpense: (expenseId: string, tripId: string) => Promise<void>
 }
+
+type UpdateExpenseParams = AddExpenseParams & { expenseId: string }
 
 type AddExpenseParams = {
   tripId: string
@@ -80,6 +83,55 @@ export const useExpensesStore = create<ExpensesStore>((set) => ({
     }))}
 
     set((state) => ({ expenses: [full, ...state.expenses] }))
+    return true
+  },
+
+  updateExpense: async ({ expenseId, description, amount, paidBy, splitMethod, splits, expenseDate }) => {
+    const { error: updateError } = await supabase
+      .from('expenses')
+      .update({
+        description,
+        amount,
+        paid_by: paidBy,
+        split_method: splitMethod,
+        expense_date: expenseDate ?? new Date().toISOString().split('T')[0],
+      })
+      .eq('id', expenseId)
+
+    if (updateError) return false
+
+    await supabase.from('expense_splits').delete().eq('expense_id', expenseId)
+
+    const { error: splitsError } = await supabase
+      .from('expense_splits')
+      .insert(splits.map((s) => ({
+        expense_id: expenseId,
+        user_id: s.userId,
+        amount: s.amount,
+      })))
+
+    if (splitsError) return false
+
+    set((state) => ({
+      expenses: state.expenses.map((e) =>
+        e.id === expenseId
+          ? {
+              ...e,
+              description,
+              amount,
+              paid_by: paidBy,
+              split_method: splitMethod,
+              splits: splits.map((s) => ({
+                id: '',
+                expense_id: expenseId,
+                user_id: s.userId,
+                amount: s.amount,
+                is_settled: false,
+              })),
+            }
+          : e
+      ),
+    }))
     return true
   },
 

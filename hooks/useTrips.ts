@@ -39,14 +39,21 @@ export const useTripsStore = create<TripsStore>((set) => ({
       .select()
       .single()
 
-    if (error || !data) return null
+    if (error || !data) {
+      console.error('createTrip: insert failed', error)
+      return null
+    }
 
     // Add creator as admin member
-    await supabase.from('trip_members').insert({
+    const { error: memberError } = await supabase.from('trip_members').insert({
       trip_id: data.id,
       user_id: user.id,
       role: 'admin',
     })
+    if (memberError) {
+      console.error('createTrip: failed to add creator as member', memberError)
+      return null
+    }
 
     set((state) => ({ trips: [data, ...state.trips] }))
     return data

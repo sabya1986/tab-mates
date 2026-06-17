@@ -29,7 +29,9 @@ export default function JoinScreen() {
 
   async function tryJoin() {
     setState('joining')
+    console.log('[join] tryJoin token:', token)
     const result = await acceptInvite(token as string)
+    console.log('[join] acceptInvite result:', JSON.stringify(result))
 
     if (!result.success) {
       if (result.error === 'not_authenticated') {

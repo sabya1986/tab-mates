@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  SafeAreaView, RefreshControl, Alert
+  SafeAreaView, RefreshControl,
 } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '../../../lib/supabase'
@@ -9,6 +9,7 @@ import { useExpensesStore } from '../../../hooks/useExpenses'
 import { usePaymentsStore } from '../../../hooks/usePayments'
 import { useBalances } from '../../../hooks/useBalances'
 import { useAuthStore } from '../../../hooks/useAuth'
+import { useTheme, type Colors } from '../../../lib/theme'
 import type { Trip, User } from '../../../lib/types'
 import type { ExpenseWithSplits } from '../../../hooks/useExpenses'
 
@@ -20,6 +21,8 @@ export default function TripDetailScreen() {
   const [trip, setTrip] = useState<Trip | null>(null)
   const [members, setMembers] = useState<User[]>([])
   const [refreshing, setRefreshing] = useState(false)
+  const C = useTheme()
+  const styles = makeStyles(C)
 
   const currentUserId = session?.user.id ?? ''
   const { myNet } = useBalances(expenses, payments, members, currentUserId)
@@ -80,34 +83,50 @@ export default function TripDetailScreen() {
     const iPaid = item.paid_by === currentUserId
 
     return (
-      <View style={styles.expenseRow}>
+      <TouchableOpacity
+        style={styles.expenseRow}
+        onPress={() => router.push({
+          pathname: '/(app)/expenses/new',
+          params: { tripId: id, currency: trip?.currency ?? 'USD', expenseId: item.id },
+        })}
+        accessibilityRole="button"
+        accessibilityLabel={`Edit expense: ${item.description}`}
+      >
         <View style={styles.expenseLeft}>
           <Text style={styles.expenseName}>{item.description}</Text>
           <Text style={styles.expenseMeta}>
-            {iPaid ? 'You paid' : `Paid by member`} · {item.expense_date}
+            {iPaid ? 'You paid' : 'Paid by member'} · {item.expense_date}
           </Text>
         </View>
         <View style={styles.expenseRight}>
           <Text style={styles.expenseAmount}>{trip?.currency} {Number(item.amount).toFixed(2)}</Text>
           {myShare > 0 && (
             <Text style={[styles.expenseShare, iPaid ? styles.sharePositive : styles.shareNegative]}>
-              {iPaid ? `You paid` : `Your share: ${trip?.currency} ${myShare.toFixed(2)}`}
+              {iPaid ? 'You paid' : `Your share: ${trip?.currency} ${myShare.toFixed(2)}`}
             </Text>
           )}
         </View>
-      </View>
+      </TouchableOpacity>
     )
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Back to trips"
+        >
           <Text style={styles.back}>← Trips</Text>
         </TouchableOpacity>
         <Text style={styles.title} numberOfLines={1}>{trip?.name ?? '...'}</Text>
         <TouchableOpacity
           onPress={() => router.push({ pathname: '/(app)/trips/invite', params: { tripId: id } })}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Invite members"
         >
           <Text style={styles.inviteBtn}>Invite</Text>
         </TouchableOpacity>
@@ -120,7 +139,6 @@ export default function TripDetailScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListHeaderComponent={
           <View>
-            {/* Stats row */}
             <View style={styles.statsRow}>
               <View style={styles.stat}>
                 <Text style={styles.statVal}>
@@ -140,7 +158,6 @@ export default function TripDetailScreen() {
               </View>
             </View>
 
-            {/* Action buttons */}
             <View style={styles.actions}>
               <TouchableOpacity
                 style={styles.primaryBtn}
@@ -148,6 +165,8 @@ export default function TripDetailScreen() {
                   pathname: '/(app)/expenses/new',
                   params: { tripId: id, currency: trip?.currency ?? 'USD' },
                 })}
+                accessibilityRole="button"
+                accessibilityLabel="Add expense"
               >
                 <Text style={styles.primaryBtnText}>+ Add expense</Text>
               </TouchableOpacity>
@@ -157,6 +176,8 @@ export default function TripDetailScreen() {
                   pathname: '/(app)/settle/[tripId]',
                   params: { tripId: id, currency: trip?.currency ?? 'USD' },
                 })}
+                accessibilityRole="button"
+                accessibilityLabel="View balances"
               >
                 <Text style={styles.secondaryBtnText}>Balances</Text>
               </TouchableOpacity>
@@ -178,55 +199,56 @@ export default function TripDetailScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 16, borderBottomWidth: 0.5, borderBottomColor: '#eee',
-  },
-  back: { fontSize: 16, color: '#1D9E75', width: 60 },
-  title: { fontSize: 17, fontWeight: '600', color: '#1a1a1a', flex: 1, textAlign: 'center' },
-  inviteBtn: { fontSize: 15, color: '#1D9E75', fontWeight: '500', width: 60, textAlign: 'right' },
-  statsRow: {
-    flexDirection: 'row', padding: 16, gap: 8,
-  },
-  stat: {
-    flex: 1, backgroundColor: '#f6f6f6', borderRadius: 12,
-    padding: 12, alignItems: 'center',
-  },
-  statVal: { fontSize: 15, fontWeight: '600', color: '#1a1a1a', marginBottom: 2 },
-  statLabel: { fontSize: 11, color: '#888' },
-  red: { color: '#A32D2D' },
-  green: { color: '#3B6D11' },
-  actions: { flexDirection: 'row', padding: 16, paddingTop: 4, gap: 10 },
-  primaryBtn: {
-    flex: 2, backgroundColor: '#1D9E75', borderRadius: 10,
-    paddingVertical: 12, alignItems: 'center',
-  },
-  primaryBtnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
-  secondaryBtn: {
-    flex: 1, borderWidth: 0.5, borderColor: '#ddd', borderRadius: 10,
-    paddingVertical: 12, alignItems: 'center', backgroundColor: '#fafafa',
-  },
-  secondaryBtnText: { color: '#555', fontWeight: '500', fontSize: 15 },
-  sectionLabel: {
-    fontSize: 11, color: '#aaa', fontWeight: '500',
-    paddingHorizontal: 16, paddingBottom: 4, letterSpacing: 0.5,
-  },
-  expenseRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 0.5, borderBottomColor: '#f0f0f0',
-  },
-  expenseLeft: { flex: 1, marginRight: 8 },
-  expenseName: { fontSize: 15, fontWeight: '500', color: '#1a1a1a', marginBottom: 3 },
-  expenseMeta: { fontSize: 12, color: '#999' },
-  expenseRight: { alignItems: 'flex-end' },
-  expenseAmount: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
-  expenseShare: { fontSize: 12, marginTop: 2 },
-  sharePositive: { color: '#3B6D11' },
-  shareNegative: { color: '#A32D2D' },
-  empty: { alignItems: 'center', paddingTop: 60 },
-  emptyText: { fontSize: 16, fontWeight: '500', color: '#555', marginBottom: 6 },
-  emptySubtext: { fontSize: 13, color: '#aaa' },
-})
+function makeStyles(C: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.bg },
+    header: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      padding: 16, borderBottomWidth: 0.5, borderBottomColor: C.border,
+    },
+    back: { fontSize: 16, color: C.brand, width: 60 },
+    title: { fontSize: 17, fontWeight: '600', color: C.textPrimary, flex: 1, textAlign: 'center' },
+    inviteBtn: { fontSize: 15, color: C.brand, fontWeight: '500', width: 60, textAlign: 'right' },
+    statsRow: { flexDirection: 'row', padding: 16, gap: 8 },
+    stat: {
+      flex: 1, backgroundColor: C.surface2, borderRadius: 12,
+      padding: 12, alignItems: 'center',
+    },
+    statVal: { fontSize: 15, fontWeight: '600', color: C.textPrimary, marginBottom: 2 },
+    statLabel: { fontSize: 11, color: C.textTertiary },
+    red: { color: C.danger },
+    green: { color: C.success },
+    actions: { flexDirection: 'row', padding: 16, paddingTop: 4, gap: 10 },
+    primaryBtn: {
+      flex: 2, backgroundColor: C.brand, borderRadius: 10,
+      paddingVertical: 12, alignItems: 'center', minHeight: 44, justifyContent: 'center',
+    },
+    primaryBtnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+    secondaryBtn: {
+      flex: 1, borderWidth: 0.5, borderColor: C.border, borderRadius: 10,
+      paddingVertical: 12, alignItems: 'center', backgroundColor: C.surface,
+      minHeight: 44, justifyContent: 'center',
+    },
+    secondaryBtnText: { color: C.textSecondary, fontWeight: '500', fontSize: 15 },
+    sectionLabel: {
+      fontSize: 11, color: C.textMuted, fontWeight: '500',
+      paddingHorizontal: 16, paddingBottom: 4, letterSpacing: 0.5,
+    },
+    expenseRow: {
+      flexDirection: 'row', alignItems: 'center',
+      paddingHorizontal: 16, paddingVertical: 12,
+      borderBottomWidth: 0.5, borderBottomColor: C.borderSubtle,
+    },
+    expenseLeft: { flex: 1, marginRight: 8 },
+    expenseName: { fontSize: 15, fontWeight: '500', color: C.textPrimary, marginBottom: 3 },
+    expenseMeta: { fontSize: 12, color: C.textTertiary },
+    expenseRight: { alignItems: 'flex-end' },
+    expenseAmount: { fontSize: 15, fontWeight: '600', color: C.textPrimary },
+    expenseShare: { fontSize: 12, marginTop: 2 },
+    sharePositive: { color: C.success },
+    shareNegative: { color: C.danger },
+    empty: { alignItems: 'center', paddingTop: 60 },
+    emptyText: { fontSize: 16, fontWeight: '500', color: C.textSecondary, marginBottom: 6 },
+    emptySubtext: { fontSize: 13, color: C.textMuted },
+  })
+}

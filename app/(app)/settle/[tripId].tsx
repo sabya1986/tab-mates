@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
-  FlatList, Alert, TextInput, Modal, ActivityIndicator
+  FlatList, TextInput, Modal, ActivityIndicator,
 } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '../../../lib/supabase'
@@ -9,6 +9,8 @@ import { useExpensesStore } from '../../../hooks/useExpenses'
 import { usePaymentsStore } from '../../../hooks/usePayments'
 import { useBalances, type Balance } from '../../../hooks/useBalances'
 import { useAuthStore } from '../../../hooks/useAuth'
+import { alert } from '../../../lib/alert'
+import { useTheme, type Colors } from '../../../lib/theme'
 import type { User } from '../../../lib/types'
 
 export default function BalancesScreen() {
@@ -20,9 +22,11 @@ export default function BalancesScreen() {
   const [settleTarget, setSettleTarget] = useState<Balance | null>(null)
   const [noteText, setNoteText] = useState('')
   const [savingPayment, setSavingPayment] = useState(false)
+  const C = useTheme()
+  const styles = makeStyles(C)
 
   const currentUserId = session?.user.id ?? ''
-  const { balances, myBalances, memberBalances, myNet } = useBalances(
+  const { balances, memberBalances, myNet } = useBalances(
     expenses, payments, members, currentUserId
   )
 
@@ -62,7 +66,7 @@ export default function BalancesScreen() {
       setSettleTarget(null)
       setNoteText('')
     } else {
-      Alert.alert('Error', 'Could not record payment. Please try again.')
+      alert('Error', 'Could not record payment. Please try again.')
     }
   }
 
@@ -87,6 +91,8 @@ export default function BalancesScreen() {
           <TouchableOpacity
             style={styles.settleBtn}
             onPress={() => setSettleTarget(item)}
+            accessibilityRole="button"
+            accessibilityLabel={`Settle debt of ${currency} ${item.amount.toFixed(2)} to ${nameOf(item.toUserId)}`}
           >
             <Text style={styles.settleBtnText}>Settle</Text>
           </TouchableOpacity>
@@ -98,7 +104,12 @@ export default function BalancesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Back to trip"
+        >
           <Text style={styles.back}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Balances</Text>
@@ -111,10 +122,9 @@ export default function BalancesScreen() {
         renderItem={renderBalance}
         ListHeaderComponent={
           <View>
-            {/* My net summary */}
             <View style={[
               styles.summaryCard,
-              myNet < 0 ? styles.summaryRed : myNet > 0 ? styles.summaryGreen : styles.summaryNeutral
+              myNet < 0 ? styles.summaryRed : myNet > 0 ? styles.summaryGreen : styles.summaryNeutral,
             ]}>
               <Text style={[styles.summaryLabel, myNet < 0 ? styles.textRed : myNet > 0 ? styles.textGreen : styles.textGray]}>
                 {myNet < 0 ? 'You owe overall' : myNet > 0 ? "You're owed overall" : 'All settled up'}
@@ -124,7 +134,6 @@ export default function BalancesScreen() {
               </Text>
             </View>
 
-            {/* Member balances */}
             <Text style={styles.sectionLabel}>All members</Text>
             {memberBalances.map((mb) => (
               <View key={mb.userId} style={styles.memberRow}>
@@ -136,7 +145,7 @@ export default function BalancesScreen() {
                 <Text style={styles.memberRowName}>{nameOf(mb.userId)}</Text>
                 <Text style={[
                   styles.memberNet,
-                  mb.net < 0 ? styles.textRed : mb.net > 0 ? styles.textGreen : styles.textGray
+                  mb.net < 0 ? styles.textRed : mb.net > 0 ? styles.textGreen : styles.textGray,
                 ]}>
                   {mb.net === 0 ? 'settled' : `${mb.net > 0 ? '+' : ''}${currency} ${mb.net.toFixed(2)}`}
                 </Text>
@@ -154,7 +163,6 @@ export default function BalancesScreen() {
         }
       />
 
-      {/* Settle up modal */}
       <Modal visible={!!settleTarget} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -165,11 +173,15 @@ export default function BalancesScreen() {
             <Text style={styles.modalAmount}>
               {currency} {settleTarget?.amount.toFixed(2)}
             </Text>
+            <Text style={styles.noteLabel}>Note (optional)</Text>
             <TextInput
               style={styles.noteInput}
-              placeholder="Note (e.g. via Venmo, cash)"
+              placeholder="e.g. via Venmo, cash"
+              placeholderTextColor={C.textMuted}
               value={noteText}
               onChangeText={setNoteText}
+              returnKeyType="done"
+              accessibilityLabel="Payment note"
             />
             <Text style={styles.modalDisclaimer}>
               This records the payment in the app only. No real money is transferred.
@@ -178,13 +190,21 @@ export default function BalancesScreen() {
               style={styles.confirmBtn}
               onPress={handleRecordPayment}
               disabled={savingPayment}
+              accessibilityRole="button"
+              accessibilityLabel="Confirm payment"
+              accessibilityState={{ disabled: savingPayment }}
             >
               {savingPayment
                 ? <ActivityIndicator color="#fff" />
                 : <Text style={styles.confirmBtnText}>Confirm payment</Text>
               }
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setSettleTarget(null)}>
+            <TouchableOpacity
+              onPress={() => setSettleTarget(null)}
+              style={styles.cancelLinkRow}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+            >
               <Text style={styles.cancelLink}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -194,77 +214,83 @@ export default function BalancesScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 16, borderBottomWidth: 0.5, borderBottomColor: '#eee',
-  },
-  back: { fontSize: 16, color: '#1D9E75', width: 60 },
-  title: { fontSize: 17, fontWeight: '600', color: '#1a1a1a' },
-  summaryCard: { margin: 16, borderRadius: 12, padding: 16 },
-  summaryRed: { backgroundColor: '#FCEBEB' },
-  summaryGreen: { backgroundColor: '#EAF3DE' },
-  summaryNeutral: { backgroundColor: '#f6f6f6' },
-  summaryLabel: { fontSize: 13, fontWeight: '500', marginBottom: 4 },
-  summaryAmount: { fontSize: 28, fontWeight: '600' },
-  textRed: { color: '#A32D2D' },
-  textGreen: { color: '#3B6D11' },
-  textGray: { color: '#666' },
-  sectionLabel: {
-    fontSize: 11, color: '#aaa', fontWeight: '500',
-    paddingHorizontal: 16, paddingVertical: 8, letterSpacing: 0.5,
-  },
-  memberRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderBottomWidth: 0.5, borderBottomColor: '#f0f0f0',
-  },
-  memberInitials: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#E1F5EE', alignItems: 'center', justifyContent: 'center', marginRight: 10,
-  },
-  memberInitialsText: { fontSize: 12, fontWeight: '600', color: '#0F6E56' },
-  memberRowName: { flex: 1, fontSize: 15, color: '#1a1a1a' },
-  memberNet: { fontSize: 14, fontWeight: '600' },
-  balanceRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 0.5, borderBottomColor: '#f0f0f0',
-  },
-  balanceRowHighlight: { backgroundColor: '#fafff8' },
-  balanceLeft: { flex: 1 },
-  balanceLine: { fontSize: 14, color: '#1a1a1a', marginBottom: 2 },
-  balanceAmount: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
-  settleBtn: {
-    backgroundColor: '#1D9E75', paddingHorizontal: 14,
-    paddingVertical: 7, borderRadius: 16,
-  },
-  settleBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  empty: { alignItems: 'center', paddingTop: 60 },
-  emptyText: { fontSize: 18, fontWeight: '600', color: '#3B6D11', marginBottom: 6 },
-  emptySubtext: { fontSize: 13, color: '#aaa' },
-  modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    padding: 24, paddingBottom: 40,
-  },
-  modalTitle: { fontSize: 18, fontWeight: '600', color: '#1a1a1a', marginBottom: 4 },
-  modalSubtitle: { fontSize: 14, color: '#888', marginBottom: 4 },
-  modalAmount: { fontSize: 32, fontWeight: '600', color: '#1a1a1a', marginBottom: 16 },
-  noteInput: {
-    borderWidth: 0.5, borderColor: '#ddd', borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 15,
-    backgroundColor: '#fafafa', marginBottom: 10,
-  },
-  modalDisclaimer: { fontSize: 12, color: '#aaa', marginBottom: 20, textAlign: 'center' },
-  confirmBtn: {
-    backgroundColor: '#1D9E75', borderRadius: 12,
-    paddingVertical: 14, alignItems: 'center', marginBottom: 12,
-  },
-  confirmBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  cancelLink: { textAlign: 'center', color: '#888', fontSize: 15 },
-})
+function makeStyles(C: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.bg },
+    header: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      padding: 16, borderBottomWidth: 0.5, borderBottomColor: C.border,
+    },
+    back: { fontSize: 16, color: C.brand, width: 60 },
+    title: { fontSize: 17, fontWeight: '600', color: C.textPrimary },
+    summaryCard: { margin: 16, borderRadius: 12, padding: 16 },
+    summaryRed: { backgroundColor: C.dangerSurface },
+    summaryGreen: { backgroundColor: C.successSurface },
+    summaryNeutral: { backgroundColor: C.surface2 },
+    summaryLabel: { fontSize: 13, fontWeight: '500', marginBottom: 4 },
+    summaryAmount: { fontSize: 28, fontWeight: '600' },
+    textRed: { color: C.danger },
+    textGreen: { color: C.success },
+    textGray: { color: C.textTertiary },
+    sectionLabel: {
+      fontSize: 11, color: C.textMuted, fontWeight: '500',
+      paddingHorizontal: 16, paddingVertical: 8, letterSpacing: 0.5,
+    },
+    memberRow: {
+      flexDirection: 'row', alignItems: 'center',
+      paddingHorizontal: 16, paddingVertical: 10,
+      borderBottomWidth: 0.5, borderBottomColor: C.borderSubtle,
+    },
+    memberInitials: {
+      width: 36, height: 36, borderRadius: 18,
+      backgroundColor: C.brandSurface, alignItems: 'center', justifyContent: 'center', marginRight: 10,
+    },
+    memberInitialsText: { fontSize: 12, fontWeight: '600', color: C.brandText },
+    memberRowName: { flex: 1, fontSize: 15, color: C.textPrimary },
+    memberNet: { fontSize: 14, fontWeight: '600' },
+    balanceRow: {
+      flexDirection: 'row', alignItems: 'center',
+      paddingHorizontal: 16, paddingVertical: 12,
+      borderBottomWidth: 0.5, borderBottomColor: C.borderSubtle,
+    },
+    balanceRowHighlight: { backgroundColor: C.brandSurface },
+    balanceLeft: { flex: 1 },
+    balanceLine: { fontSize: 14, color: C.textPrimary, marginBottom: 2 },
+    balanceAmount: { fontSize: 15, fontWeight: '600', color: C.textPrimary },
+    settleBtn: {
+      backgroundColor: C.brand, paddingHorizontal: 14,
+      paddingVertical: 10, borderRadius: 16, minHeight: 44,
+      justifyContent: 'center',
+    },
+    settleBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+    empty: { alignItems: 'center', paddingTop: 60 },
+    emptyText: { fontSize: 18, fontWeight: '600', color: C.success, marginBottom: 6 },
+    emptySubtext: { fontSize: 13, color: C.textMuted },
+    modalOverlay: {
+      flex: 1, backgroundColor: C.overlay,
+      justifyContent: 'flex-end',
+    },
+    modalCard: {
+      backgroundColor: C.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+      padding: 24, paddingBottom: 40,
+    },
+    modalTitle: { fontSize: 18, fontWeight: '600', color: C.textPrimary, marginBottom: 4 },
+    modalSubtitle: { fontSize: 14, color: C.textTertiary, marginBottom: 4 },
+    modalAmount: { fontSize: 32, fontWeight: '600', color: C.textPrimary, marginBottom: 16 },
+    noteLabel: { fontSize: 13, fontWeight: '500', color: C.textTertiary, marginBottom: 6 },
+    noteInput: {
+      borderWidth: 0.5, borderColor: C.border, borderRadius: 10,
+      paddingHorizontal: 14, paddingVertical: 12, fontSize: 15,
+      backgroundColor: C.surface, color: C.textPrimary, marginBottom: 10,
+    },
+    modalDisclaimer: { fontSize: 12, color: C.textMuted, marginBottom: 20, textAlign: 'center' },
+    confirmBtn: {
+      backgroundColor: C.brand, borderRadius: 12,
+      paddingVertical: 14, alignItems: 'center', marginBottom: 12,
+      minHeight: 44, justifyContent: 'center',
+    },
+    confirmBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+    cancelLinkRow: { paddingVertical: 12, alignItems: 'center' },
+    cancelLink: { color: C.textTertiary, fontSize: 15 },
+  })
+}
