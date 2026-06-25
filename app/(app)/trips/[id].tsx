@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   SafeAreaView, RefreshControl,
 } from 'react-native'
-import { useLocalSearchParams, router } from 'expo-router'
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router'
 import { supabase } from '../../../lib/supabase'
 import { useExpensesStore } from '../../../hooks/useExpenses'
 import { usePaymentsStore } from '../../../hooks/usePayments'
@@ -32,6 +32,12 @@ export default function TripDetailScreen() {
     loadAll()
     setupRealtime()
   }, [id])
+
+  useFocusEffect(
+    useCallback(() => {
+      if (id) loadTrip()
+    }, [id])
+  )
 
   async function loadAll() {
     await Promise.all([loadTrip(), fetchExpenses(id), fetchPayments(id)])
@@ -122,14 +128,24 @@ export default function TripDetailScreen() {
           <Text style={styles.back}>← Trips</Text>
         </TouchableOpacity>
         <Text style={styles.title} numberOfLines={1}>{trip?.name ?? '...'}</Text>
-        <TouchableOpacity
-          onPress={() => router.push({ pathname: '/(app)/trips/invite', params: { tripId: id } })}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityRole="button"
-          accessibilityLabel="Invite members"
-        >
-          <Text style={styles.inviteBtn}>Invite</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/(app)/trips/invite', params: { tripId: id } })}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Invite members"
+          >
+            <Text style={styles.headerBtn}>Invite</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/(app)/trips/settings', params: { tripId: id } })}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Trip settings"
+          >
+            <Text style={styles.headerBtn}>···</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
@@ -208,7 +224,8 @@ function makeStyles(C: Colors) {
     },
     back: { fontSize: 16, color: C.brand, width: 60 },
     title: { fontSize: 17, fontWeight: '600', color: C.textPrimary, flex: 1, textAlign: 'center' },
-    inviteBtn: { fontSize: 15, color: C.brand, fontWeight: '500', width: 60, textAlign: 'right' },
+    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 16, width: 80, justifyContent: 'flex-end' },
+    headerBtn: { fontSize: 15, color: C.brand, fontWeight: '500' },
     statsRow: { flexDirection: 'row', padding: 16, gap: 8 },
     stat: {
       flex: 1, backgroundColor: C.surface2, borderRadius: 12,
