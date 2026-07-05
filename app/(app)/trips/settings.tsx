@@ -87,7 +87,7 @@ export default function TripSettingsScreen() {
     if (error) {
       alert('Error', 'Could not delete trip. Please try again.')
     } else {
-      router.replace('/(app)/(tabs)/')
+      router.replace('/(app)/(tabs)')
     }
   }
 
@@ -111,7 +111,7 @@ export default function TripSettingsScreen() {
     if (error) {
       alert('Error', 'Could not leave trip. Please try again.')
     } else {
-      router.replace('/(app)/(tabs)/')
+      router.replace('/(app)/(tabs)')
     }
   }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   SafeAreaView, RefreshControl,
@@ -25,12 +25,14 @@ export default function TripDetailScreen() {
   const styles = makeStyles(C)
 
   const currentUserId = session?.user.id ?? ''
-  const { myNet } = useBalances(expenses, payments, members, currentUserId, trip?.simplify_debts ?? false)
+  const tripExpenses = useMemo(() => expenses.filter((e) => e.trip_id === id), [expenses, id])
+  const tripPayments = useMemo(() => payments.filter((p) => p.trip_id === id), [payments, id])
+  const { myNet } = useBalances(tripExpenses, tripPayments, members, currentUserId, trip?.simplify_debts ?? false)
 
   useEffect(() => {
     if (!id) return
     loadAll()
-    setupRealtime()
+    return setupRealtime()
   }, [id])
 
   useFocusEffect(
@@ -73,7 +75,7 @@ export default function TripDetailScreen() {
       }, () => fetchPayments(id))
       .subscribe()
 
-    return () => supabase.removeChannel(channel)
+    return () => { supabase.removeChannel(channel) }
   }
 
   async function onRefresh() {
@@ -82,7 +84,7 @@ export default function TripDetailScreen() {
     setRefreshing(false)
   }
 
-  const totalSpent = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
+  const totalSpent = tripExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
 
   function renderExpense({ item }: { item: ExpenseWithSplits }) {
     const myShare = item.splits.find((s) => s.user_id === currentUserId)?.amount ?? 0
@@ -149,7 +151,7 @@ export default function TripDetailScreen() {
       </View>
 
       <FlatList
-        data={expenses}
+        data={tripExpenses}
         keyExtractor={(item) => item.id}
         renderItem={renderExpense}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -169,7 +171,7 @@ export default function TripDetailScreen() {
                 <Text style={styles.statLabel}>{myNet < 0 ? 'You owe' : myNet > 0 ? "You're owed" : 'Settled'}</Text>
               </View>
               <View style={styles.stat}>
-                <Text style={styles.statVal}>{expenses.length}</Text>
+                <Text style={styles.statVal}>{tripExpenses.length}</Text>
                 <Text style={styles.statLabel}>Expenses</Text>
               </View>
             </View>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
   FlatList, TextInput, Modal, ActivityIndicator,
@@ -27,8 +27,10 @@ export default function BalancesScreen() {
   const styles = makeStyles(C)
 
   const currentUserId = session?.user.id ?? ''
+  const tripExpenses = useMemo(() => expenses.filter((e) => e.trip_id === tripId), [expenses, tripId])
+  const tripPayments = useMemo(() => payments.filter((p) => p.trip_id === tripId), [payments, tripId])
   const { balances, memberBalances, myNet } = useBalances(
-    expenses, payments, members, currentUserId, trip?.simplify_debts ?? false
+    tripExpenses, tripPayments, members, currentUserId, trip?.simplify_debts ?? false
   )
 
   useEffect(() => {

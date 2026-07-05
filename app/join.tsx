@@ -70,7 +70,7 @@ export default function JoinScreen() {
 
   function goToTrip() {
     if (tripId) router.replace(`/(app)/trips/${tripId}`)
-    else router.replace('/(app)')
+    else router.replace('/(app)/(tabs)')
   }
 
   if (state === 'loading' || state === 'joining') {
@@ -116,7 +116,7 @@ export default function JoinScreen() {
       <Text style={styles.icon}>⚠️</Text>
       <Text style={styles.heading}>Can't join</Text>
       <Text style={styles.body}>{errorMsg}</Text>
-      <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.replace('/(app)')}>
+      <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.replace('/(app)/(tabs)')}>
         <Text style={styles.secondaryBtnText}>Go to my trips</Text>
       </TouchableOpacity>
     </View>

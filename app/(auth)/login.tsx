@@ -28,7 +28,7 @@ export default function LoginScreen() {
         if (pendingToken) {
           router.replace({ pathname: '/join', params: { token: pendingToken } })
         } else {
-          router.replace('/(app)')
+          router.replace('/(app)/(tabs)')
         }
       }
     })
