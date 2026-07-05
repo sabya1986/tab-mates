@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  SafeAreaView, ScrollView, ActivityIndicator,
+  SafeAreaView, ScrollView, ActivityIndicator, Switch,
 } from 'react-native'
 import { router } from 'expo-router'
 import { useTripsStore } from '../../../hooks/useTrips'
@@ -15,6 +15,7 @@ export default function NewTripScreen() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [currency, setCurrency] = useState('USD')
+  const [simplifyDebts, setSimplifyDebts] = useState(false)
   const [loading, setLoading] = useState(false)
   const descRef = useRef<TextInput>(null)
   const C = useTheme()
@@ -26,7 +27,7 @@ export default function NewTripScreen() {
       return
     }
     setLoading(true)
-    const trip = await createTrip(name.trim(), description.trim(), currency)
+    const trip = await createTrip(name.trim(), description.trim(), currency, simplifyDebts)
     setLoading(false)
     if (trip) {
       router.replace(`/(app)/trips/${trip.id}`)
@@ -109,6 +110,24 @@ export default function NewTripScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleTextWrap}>
+            <Text style={styles.toggleLabel}>Simplify debts</Text>
+            <Text style={styles.toggleDesc}>
+              Show the fewest payments needed to settle up, instead of every debt between every pair.
+              Can't be changed after the trip is created.
+            </Text>
+          </View>
+          <Switch
+            value={simplifyDebts}
+            onValueChange={setSimplifyDebts}
+            trackColor={{ false: C.border, true: C.brand }}
+            thumbColor="#fff"
+            accessibilityLabel="Simplify debts"
+            accessibilityRole="switch"
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   )
@@ -141,5 +160,13 @@ function makeStyles(C: Colors) {
     currencySelected: { backgroundColor: C.brand, borderColor: C.brand },
     currencyText: { fontSize: 14, color: C.textSecondary, fontWeight: '500' },
     currencyTextSelected: { color: '#fff' },
+    toggleRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      marginTop: 24, padding: 14, borderRadius: 12,
+      borderWidth: 0.5, borderColor: C.border, backgroundColor: C.surface,
+    },
+    toggleTextWrap: { flex: 1 },
+    toggleLabel: { fontSize: 15, fontWeight: '500', color: C.textPrimary, marginBottom: 4 },
+    toggleDesc: { fontSize: 12, color: C.textMuted, lineHeight: 17 },
   })
 }

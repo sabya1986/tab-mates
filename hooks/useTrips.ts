@@ -6,7 +6,7 @@ type TripsStore = {
   trips: Trip[]
   loading: boolean
   fetchTrips: () => Promise<void>
-  createTrip: (name: string, description: string, currency: string) => Promise<Trip | null>
+  createTrip: (name: string, description: string, currency: string, simplifyDebts: boolean) => Promise<Trip | null>
 }
 
 export const useTripsStore = create<TripsStore>((set) => ({
@@ -29,13 +29,13 @@ export const useTripsStore = create<TripsStore>((set) => ({
     set({ loading: false })
   },
 
-  createTrip: async (name, description, currency) => {
+  createTrip: async (name, description, currency, simplifyDebts) => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return null
 
     const { data, error } = await supabase
       .from('trips')
-      .insert({ name, description, currency, created_by: user.id })
+      .insert({ name, description, currency, simplify_debts: simplifyDebts, created_by: user.id })
       .select()
       .single()
 

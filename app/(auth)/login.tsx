@@ -14,6 +14,8 @@ export default function LoginScreen() {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [linkSent, setLinkSent] = useState(false)
+  const [checkedEmail, setCheckedEmail] = useState('')
+  const [accountExists, setAccountExists] = useState(false)
   const C = useTheme()
   const styles = makeStyles(C)
 
@@ -29,6 +31,16 @@ export default function LoginScreen() {
     })
     return () => subscription.unsubscribe()
   }, [pendingToken])
+
+  async function checkEmailExists() {
+    const trimmed = email.trim().toLowerCase()
+    if (!trimmed) return
+    const { data } = await supabase.rpc('user_exists_with_email', { check_email: trimmed })
+    setCheckedEmail(trimmed)
+    setAccountExists(!!data)
+  }
+
+  const showNameField = !(accountExists && checkedEmail === email.trim().toLowerCase())
 
   async function sendLink() {
     if (!email.trim()) return
@@ -67,19 +79,6 @@ export default function LoginScreen() {
 
           {!linkSent ? (
             <>
-              <Text style={styles.label}>Your name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder={pendingToken ? 'How should others see you?' : 'Display name (optional)'}
-                placeholderTextColor={C.textMuted}
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-                autoComplete="name"
-                textContentType="name"
-                returnKeyType="next"
-                accessibilityLabel="Your name"
-              />
               <Text style={styles.label}>Email address</Text>
               <TextInput
                 style={styles.input}
@@ -87,14 +86,35 @@ export default function LoginScreen() {
                 placeholderTextColor={C.textMuted}
                 value={email}
                 onChangeText={setEmail}
+                onBlur={checkEmailExists}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 autoComplete="email"
                 textContentType="emailAddress"
-                returnKeyType="done"
-                onSubmitEditing={sendLink}
+                returnKeyType={showNameField ? 'next' : 'done'}
+                onSubmitEditing={showNameField ? undefined : sendLink}
                 accessibilityLabel="Email address"
               />
+              {showNameField ? (
+                <>
+                  <Text style={styles.label}>Your name</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={pendingToken ? 'How should others see you?' : 'Display name (optional)'}
+                    placeholderTextColor={C.textMuted}
+                    value={name}
+                    onChangeText={setName}
+                    autoCapitalize="words"
+                    autoComplete="name"
+                    textContentType="name"
+                    returnKeyType="done"
+                    onSubmitEditing={sendLink}
+                    accessibilityLabel="Your name"
+                  />
+                </>
+              ) : (
+                <Text style={styles.welcomeBack}>Welcome back! We'll send a sign-in link.</Text>
+              )}
               <TouchableOpacity
                 style={[styles.button, loading && styles.buttonDisabled]}
                 onPress={sendLink}
@@ -152,6 +172,7 @@ function makeStyles(C: Colors) {
     title: { fontSize: 32, fontWeight: '600', marginBottom: 8, color: C.textPrimary },
     subtitle: { fontSize: 16, color: C.textTertiary, marginBottom: 32 },
     label: { fontSize: 13, fontWeight: '500', color: C.textTertiary, marginBottom: 6 },
+    welcomeBack: { fontSize: 14, color: C.textTertiary, marginBottom: 16 },
     input: {
       height: 50, borderWidth: 0.5, borderColor: C.border,
       borderRadius: 10, paddingHorizontal: 16, fontSize: 16,

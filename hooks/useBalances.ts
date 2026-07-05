@@ -13,12 +13,48 @@ export type MemberBalance = {
   net: number // positive = is owed money, negative = owes money
 }
 
-// Given expenses + payments, compute who owes whom (simplified)
+// Reduces per-member net balances to the minimum number of payments needed
+// to settle everyone up, by repeatedly matching the largest creditor with
+// the largest debtor.
+function simplifyBalances(memberBalances: MemberBalance[]): Balance[] {
+  const creditors = memberBalances
+    .filter((m) => m.net > 0.005)
+    .map((m) => ({ id: m.userId, amt: m.net }))
+    .sort((a, b) => b.amt - a.amt)
+  const debtors = memberBalances
+    .filter((m) => m.net < -0.005)
+    .map((m) => ({ id: m.userId, amt: -m.net }))
+    .sort((a, b) => b.amt - a.amt)
+
+  const result: Balance[] = []
+  let i = 0
+  let j = 0
+  while (i < debtors.length && j < creditors.length) {
+    const debtor = debtors[i]
+    const creditor = creditors[j]
+    const amount = Math.round(Math.min(debtor.amt, creditor.amt) * 100) / 100
+    if (amount > 0.005) {
+      result.push({ fromUserId: debtor.id, toUserId: creditor.id, amount })
+    }
+    debtor.amt -= amount
+    creditor.amt -= amount
+    if (debtor.amt <= 0.005) i++
+    if (creditor.amt <= 0.005) j++
+  }
+  return result
+}
+
+// Given expenses + payments, compute who owes whom.
+// By default this only nets mutual pairs (A owes B $10, B owes A $3 -> A owes B $7).
+// Pass simplifyDebts=true to collapse the whole group down to the minimum
+// number of payments instead (e.g. B->A $50 + B->C $50 + A->C $100 becomes
+// B->C $100 + A->C $50).
 export function useBalances(
   expenses: ExpenseWithSplits[],
   payments: Payment[],
   members: User[],
-  currentUserId: string
+  currentUserId: string,
+  simplifyDebts: boolean = false
 ) {
   return useMemo(() => {
     // Build raw balance map: balances[debtor][creditor] = amount
@@ -77,12 +113,14 @@ export function useBalances(
       return { userId: m.id, net: Math.round((owedToMe - iOwe) * 100) / 100 }
     })
 
-    const myBalances = netted.filter(
+    const balances = simplifyDebts ? simplifyBalances(memberBalances) : netted
+
+    const myBalances = balances.filter(
       (b) => b.fromUserId === currentUserId || b.toUserId === currentUserId
     )
 
     const myNet = memberBalances.find((m) => m.userId === currentUserId)?.net ?? 0
 
-    return { balances: netted, myBalances, memberBalances, myNet }
-  }, [expenses, payments, members, currentUserId])
+    return { balances, myBalances, memberBalances, myNet }
+  }, [expenses, payments, members, currentUserId, simplifyDebts])
 }

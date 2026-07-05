@@ -32,6 +32,7 @@ export type Database = {
           description: string | null
           currency: string
           status: 'active' | 'settled' | 'archived'
+          simplify_debts: boolean
           created_by: string
           created_at: string
         }
@@ -41,6 +42,7 @@ export type Database = {
           description?: string | null
           currency?: string
           status?: 'active' | 'settled' | 'archived'
+          simplify_debts?: boolean
           created_by: string
           created_at?: string
         }
@@ -172,7 +174,12 @@ export type Database = {
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      user_exists_with_email: {
+        Args: { check_email: string }
+        Returns: boolean
+      }
+    }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
   }

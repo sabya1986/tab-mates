@@ -25,7 +25,7 @@ export default function TripDetailScreen() {
   const styles = makeStyles(C)
 
   const currentUserId = session?.user.id ?? ''
-  const { myNet } = useBalances(expenses, payments, members, currentUserId)
+  const { myNet } = useBalances(expenses, payments, members, currentUserId, trip?.simplify_debts ?? false)
 
   useEffect(() => {
     if (!id) return

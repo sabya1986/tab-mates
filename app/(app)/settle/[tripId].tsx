@@ -11,7 +11,7 @@ import { useBalances, type Balance } from '../../../hooks/useBalances'
 import { useAuthStore } from '../../../hooks/useAuth'
 import { alert } from '../../../lib/alert'
 import { useTheme, type Colors } from '../../../lib/theme'
-import type { User } from '../../../lib/types'
+import type { Trip, User } from '../../../lib/types'
 
 export default function BalancesScreen() {
   const { tripId, currency } = useLocalSearchParams<{ tripId: string; currency: string }>()
@@ -19,6 +19,7 @@ export default function BalancesScreen() {
   const { expenses, fetchExpenses } = useExpensesStore()
   const { payments, fetchPayments, recordPayment } = usePaymentsStore()
   const [members, setMembers] = useState<User[]>([])
+  const [trip, setTrip] = useState<Trip | null>(null)
   const [settleTarget, setSettleTarget] = useState<Balance | null>(null)
   const [noteText, setNoteText] = useState('')
   const [savingPayment, setSavingPayment] = useState(false)
@@ -27,7 +28,7 @@ export default function BalancesScreen() {
 
   const currentUserId = session?.user.id ?? ''
   const { balances, memberBalances, myNet } = useBalances(
-    expenses, payments, members, currentUserId
+    expenses, payments, members, currentUserId, trip?.simplify_debts ?? false
   )
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function BalancesScreen() {
     fetchExpenses(tripId)
     fetchPayments(tripId)
     loadMembers()
+    loadTrip()
   }, [tripId])
 
   async function loadMembers() {
@@ -45,6 +47,11 @@ export default function BalancesScreen() {
     if (data) {
       setMembers(data.map((m: any) => m.users).filter(Boolean))
     }
+  }
+
+  async function loadTrip() {
+    const { data } = await supabase.from('trips').select('*').eq('id', tripId).single()
+    if (data) setTrip(data)
   }
 
   function nameOf(userId: string) {
@@ -152,7 +159,9 @@ export default function BalancesScreen() {
               </View>
             ))}
 
-            <Text style={styles.sectionLabel}>Simplified debts</Text>
+            <Text style={styles.sectionLabel}>
+              {trip?.simplify_debts ? 'Simplified debts' : 'Who owes whom'}
+            </Text>
           </View>
         }
         ListEmptyComponent={
