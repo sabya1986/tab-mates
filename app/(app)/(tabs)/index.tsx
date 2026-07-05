@@ -49,7 +49,7 @@ export default function TripsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>My Trips</Text>
+        <Text style={styles.title}>My Tabs</Text>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => router.push('/(app)/trips/new')}
@@ -71,7 +71,7 @@ export default function TripsScreen() {
         ListEmptyComponent={
           !loading ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>No trips yet</Text>
+              <Text style={styles.emptyText}>No tabs yet</Text>
               <Text style={styles.emptySubtext}>Create one to start splitting expenses</Text>
             </View>
           ) : null
