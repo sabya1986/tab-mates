@@ -18,6 +18,7 @@ export default function LoginScreen() {
   const [accountExists, setAccountExists] = useState(false)
   const [code, setCode] = useState('')
   const [verifying, setVerifying] = useState(false)
+  const [wasNewSignup, setWasNewSignup] = useState(false)
   const C = useTheme()
   const styles = makeStyles(C)
 
@@ -65,6 +66,7 @@ export default function LoginScreen() {
     if (error) {
       alert('Error', error.message)
     } else {
+      setWasNewSignup(showNameField)
       setLinkSent(true)
     }
   }
@@ -150,39 +152,47 @@ export default function LoginScreen() {
               <Text style={styles.checkIcon}>✉️</Text>
               <Text style={styles.checkTitle}>Check your inbox</Text>
               <Text style={styles.checkBody}>
-                We sent a sign-in link to{'\n'}
+                {wasNewSignup ? 'We sent a confirmation link to' : 'We sent a sign-in link to'}{'\n'}
                 <Text style={styles.emailHighlight}>{email}</Text>
               </Text>
-              <Text style={styles.checkHint}>
-                Tap the link, or enter the 6-digit code from the email below.
-              </Text>
-              <TextInput
-                style={[styles.input, styles.codeInput]}
-                placeholder="123456"
-                placeholderTextColor={C.textMuted}
-                value={code}
-                onChangeText={setCode}
-                keyboardType="number-pad"
-                textContentType="oneTimeCode"
-                autoComplete="one-time-code"
-                maxLength={6}
-                returnKeyType="done"
-                onSubmitEditing={verifyCode}
-                accessibilityLabel="6-digit sign-in code"
-              />
-              <TouchableOpacity
-                style={[styles.button, (verifying || !code.trim()) && styles.buttonDisabled]}
-                onPress={verifyCode}
-                disabled={verifying || !code.trim()}
-                accessibilityRole="button"
-                accessibilityLabel="Verify code"
-                accessibilityState={{ disabled: verifying || !code.trim() }}
-              >
-                {verifying
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.buttonText}>Verify code</Text>
-                }
-              </TouchableOpacity>
+              {wasNewSignup ? (
+                <Text style={styles.checkHint}>
+                  Tap the link to activate your account. You'll be signed in automatically.
+                </Text>
+              ) : (
+                <>
+                  <Text style={styles.checkHint}>
+                    Tap the link, or enter the code from the email below.
+                  </Text>
+                  <TextInput
+                    style={[styles.input, styles.codeInput]}
+                    placeholder="Code"
+                    placeholderTextColor={C.textMuted}
+                    value={code}
+                    onChangeText={setCode}
+                    keyboardType="number-pad"
+                    textContentType="oneTimeCode"
+                    autoComplete="one-time-code"
+                    maxLength={10}
+                    returnKeyType="done"
+                    onSubmitEditing={verifyCode}
+                    accessibilityLabel="Sign-in code"
+                  />
+                  <TouchableOpacity
+                    style={[styles.button, (verifying || !code.trim()) && styles.buttonDisabled]}
+                    onPress={verifyCode}
+                    disabled={verifying || !code.trim()}
+                    accessibilityRole="button"
+                    accessibilityLabel="Verify code"
+                    accessibilityState={{ disabled: verifying || !code.trim() }}
+                  >
+                    {verifying
+                      ? <ActivityIndicator color="#fff" />
+                      : <Text style={styles.buttonText}>Verify code</Text>
+                    }
+                  </TouchableOpacity>
+                </>
+              )}
               <TouchableOpacity
                 style={styles.resendRow}
                 onPress={() => { setLinkSent(false); setEmail(''); setCode('') }}
@@ -233,7 +243,7 @@ function makeStyles(C: Colors) {
     checkBody: { fontSize: 15, color: C.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 16 },
     emailHighlight: { fontWeight: '600', color: C.textPrimary },
     checkHint: { fontSize: 14, color: C.textTertiary, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
-    codeInput: { width: '100%', textAlign: 'center', fontSize: 22, letterSpacing: 6 },
+    codeInput: { width: '100%', textAlign: 'center', fontSize: 22, letterSpacing: 4 },
     resendRow: { paddingVertical: 10, marginBottom: 4 },
     link: { textAlign: 'center', color: C.brand, fontSize: 14 },
   })
