@@ -16,6 +16,8 @@ export default function LoginScreen() {
   const [linkSent, setLinkSent] = useState(false)
   const [checkedEmail, setCheckedEmail] = useState('')
   const [accountExists, setAccountExists] = useState(false)
+  const [code, setCode] = useState('')
+  const [verifying, setVerifying] = useState(false)
   const C = useTheme()
   const styles = makeStyles(C)
 
@@ -64,6 +66,20 @@ export default function LoginScreen() {
       alert('Error', error.message)
     } else {
       setLinkSent(true)
+    }
+  }
+
+  async function verifyCode() {
+    if (!code.trim()) return
+    setVerifying(true)
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token: code.trim(),
+      type: 'email',
+    })
+    setVerifying(false)
+    if (error) {
+      alert('Invalid code', 'That code is incorrect or has expired. Please try again or resend.')
     }
   }
 
@@ -138,11 +154,38 @@ export default function LoginScreen() {
                 <Text style={styles.emailHighlight}>{email}</Text>
               </Text>
               <Text style={styles.checkHint}>
-                Open the email and tap the link — you'll be signed in automatically.
+                Tap the link, or enter the 6-digit code from the email below.
               </Text>
+              <TextInput
+                style={[styles.input, styles.codeInput]}
+                placeholder="123456"
+                placeholderTextColor={C.textMuted}
+                value={code}
+                onChangeText={setCode}
+                keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                autoComplete="one-time-code"
+                maxLength={6}
+                returnKeyType="done"
+                onSubmitEditing={verifyCode}
+                accessibilityLabel="6-digit sign-in code"
+              />
+              <TouchableOpacity
+                style={[styles.button, (verifying || !code.trim()) && styles.buttonDisabled]}
+                onPress={verifyCode}
+                disabled={verifying || !code.trim()}
+                accessibilityRole="button"
+                accessibilityLabel="Verify code"
+                accessibilityState={{ disabled: verifying || !code.trim() }}
+              >
+                {verifying
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.buttonText}>Verify code</Text>
+                }
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.resendRow}
-                onPress={() => { setLinkSent(false); setEmail('') }}
+                onPress={() => { setLinkSent(false); setEmail(''); setCode('') }}
                 accessibilityRole="button"
                 accessibilityLabel="Use a different email"
               >
@@ -189,7 +232,8 @@ function makeStyles(C: Colors) {
     checkTitle: { fontSize: 22, fontWeight: '600', color: C.textPrimary, marginBottom: 12 },
     checkBody: { fontSize: 15, color: C.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 16 },
     emailHighlight: { fontWeight: '600', color: C.textPrimary },
-    checkHint: { fontSize: 14, color: C.textTertiary, textAlign: 'center', lineHeight: 20, marginBottom: 32 },
+    checkHint: { fontSize: 14, color: C.textTertiary, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+    codeInput: { width: '100%', textAlign: 'center', fontSize: 22, letterSpacing: 6 },
     resendRow: { paddingVertical: 10, marginBottom: 4 },
     link: { textAlign: 'center', color: C.brand, fontSize: 14 },
   })
