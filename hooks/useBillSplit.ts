@@ -1,6 +1,23 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 
+// supabase-js's FunctionsHttpError always sets error.message to the generic
+// "Edge Function returned a non-2xx status code" — the actual body our
+// functions return (a real error description) lives on error.context, a raw
+// Response we have to read ourselves.
+async function describeFunctionError(error: unknown): Promise<string> {
+  const context = (error as { context?: unknown } | null)?.context
+  if (context && typeof (context as Response).text === 'function') {
+    try {
+      const text = await (context as Response).text()
+      if (text) return text
+    } catch {
+      // fall through to the generic message below
+    }
+  }
+  return error instanceof Error ? error.message : 'Something went wrong.'
+}
+
 export type DraftLine = {
   phone_number: string
   line_type: 'voice' | 'data' | 'wearable'
@@ -75,7 +92,7 @@ export const useBillSplitStore = create<BillSplitStore>((set, get) => ({
     })
     set({ parsing: false })
     if (error || !data) {
-      set({ error: error?.message ?? 'Could not read that bill.' })
+      set({ error: error ? await describeFunctionError(error) : 'Could not read that bill.' })
       return false
     }
     set({ draft: data as BillDraft })
@@ -89,7 +106,7 @@ export const useBillSplitStore = create<BillSplitStore>((set, get) => ({
     })
     set({ computing: false })
     if (error || !data) {
-      set({ error: error?.message ?? 'Could not compute the split.' })
+      set({ error: error ? await describeFunctionError(error) : 'Could not compute the split.' })
       return false
     }
     set({ computed: data as ComputeResult })
@@ -105,7 +122,7 @@ export const useBillSplitStore = create<BillSplitStore>((set, get) => ({
     })
     set({ sending: false })
     if (error || !data) {
-      set({ error: error?.message ?? 'Could not send emails.' })
+      set({ error: error ? await describeFunctionError(error) : 'Could not send emails.' })
       return null
     }
     return (data.results as SendResult) ?? []
