@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           model: ANTHROPIC_MODEL,
-          max_tokens: 4096,
+          max_tokens: 8192,
           system: SYSTEM_PROMPT,
           messages: [
             {
@@ -134,6 +134,14 @@ Deno.serve(async (req) => {
     const anthropicJson = await anthropicRes.json()
     const rawText: string = anthropicJson.content?.[0]?.text ?? ''
 
+    if (anthropicJson.stop_reason === 'max_tokens') {
+      console.error('bill-split-parse: response truncated at max_tokens', rawText)
+      return new Response(
+        "The model's response was cut off before finishing (this bill may have too many lines). Try again.",
+        { status: 502, headers: corsHeaders }
+      )
+    }
+
     let extracted: {
       billing_period: string
       bill_total: number
@@ -142,10 +150,15 @@ Deno.serve(async (req) => {
       notes: string[]
     }
     try {
-      const jsonText = rawText.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
-      extracted = JSON.parse(jsonText)
-    } catch {
-      console.error('bill-split-parse: could not parse model response', rawText)
+      // Strip markdown fences if present, then take the outermost {...} in
+      // case the model added any stray prose before or after the JSON.
+      const fenceStripped = rawText.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
+      const start = fenceStripped.indexOf('{')
+      const end = fenceStripped.lastIndexOf('}')
+      if (start === -1 || end === -1 || end < start) throw new Error('no JSON object found')
+      extracted = JSON.parse(fenceStripped.slice(start, end + 1))
+    } catch (e) {
+      console.error('bill-split-parse: could not parse model response', e, rawText)
       return new Response(`Could not parse the model's response as JSON:\n\n${rawText}`, {
         status: 502,
         headers: corsHeaders,
