@@ -25,6 +25,14 @@ export default function BillSplitResultScreen() {
 
   if (!computed) return null
 
+  const sharedEmailGroups = Object.values(
+    computed.rows.reduce<Record<string, string[]>>((acc, row) => {
+      const key = row.email.toLowerCase()
+      acc[key] = [...(acc[key] ?? []), row.name]
+      return acc
+    }, {})
+  ).filter((names) => names.length > 1)
+
   async function handleSend() {
     const result = await sendEmails()
     if (result) setSendResult(result)
@@ -67,10 +75,16 @@ export default function BillSplitResultScreen() {
           </Text>
         )}
 
+        {sharedEmailGroups.map((names, i) => (
+          <Text key={i} style={styles.sharedEmailNote}>
+            ℹ️ {names.join(' and ')} share an email — they'll get one combined message with a total.
+          </Text>
+        ))}
+
         {computed.rows.map((row) => {
-          const sent = sendResult?.find((r) => r.email === row.email)
+          const sent = sendResult?.find((r) => r.email.toLowerCase() === row.email.toLowerCase())
           return (
-            <View key={row.email} style={styles.row}>
+            <View key={`${row.name}|${row.email}`} style={styles.row}>
               <View style={styles.rowTop}>
                 <Text style={styles.name}>{row.name}</Text>
                 <Text style={styles.total}>${row.total.toFixed(2)}</Text>
@@ -131,6 +145,7 @@ function makeStyles(C: Colors) {
     mismatchBox: { backgroundColor: C.dangerSurface, borderRadius: 10, padding: 12, marginBottom: 16 },
     mismatchText: { fontSize: 13, color: C.danger, lineHeight: 18 },
     reconciledText: { fontSize: 13, color: C.success, marginBottom: 16 },
+    sharedEmailNote: { fontSize: 13, color: C.textTertiary, marginBottom: 8 },
     row: {
       borderWidth: 0.5, borderColor: C.border, borderRadius: 10,
       backgroundColor: C.surface, padding: 14, marginBottom: 10,
