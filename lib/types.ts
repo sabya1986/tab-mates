@@ -172,6 +172,86 @@ export type Database = {
         Update: Record<string, never>
         Relationships: []
       }
+      bill_split_associations: {
+        Row: {
+          user_id: string
+          phone_number: string
+          person_name: string
+          email: string | null
+          line_type: 'voice' | 'data' | 'wearable'
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          phone_number: string
+          person_name: string
+          email?: string | null
+          line_type: 'voice' | 'data' | 'wearable'
+          updated_at?: string
+        }
+        Update: {
+          person_name?: string
+          email?: string | null
+          line_type?: 'voice' | 'data' | 'wearable'
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bill_splits: {
+        Row: {
+          id: string
+          created_by: string
+          billing_period: string
+          bill_total: number | null
+          computed_total: number
+          reconciled: boolean
+          raw_input: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          created_by: string
+          billing_period: string
+          bill_total?: number | null
+          computed_total: number
+          reconciled?: boolean
+          raw_input: Json
+          created_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: []
+      }
+      bill_split_shares: {
+        Row: {
+          id: string
+          bill_split_id: string
+          person_name: string
+          email: string
+          lines_desc: string
+          line_subtotal: number
+          account_share: number
+          amount_total: number
+          sent_at: string | null
+          send_error: string | null
+        }
+        Insert: {
+          id?: string
+          bill_split_id: string
+          person_name: string
+          email: string
+          lines_desc: string
+          line_subtotal: number
+          account_share: number
+          amount_total: number
+          sent_at?: string | null
+          send_error?: string | null
+        }
+        Update: {
+          sent_at?: string | null
+          send_error?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -193,3 +273,6 @@ export type Expense = Database['public']['Tables']['expenses']['Row']
 export type ExpenseSplit = Database['public']['Tables']['expense_splits']['Row']
 export type Payment = Database['public']['Tables']['payments']['Row']
 export type TripInvite = Database['public']['Tables']['trip_invites']['Row']
+export type BillSplitAssociation = Database['public']['Tables']['bill_split_associations']['Row']
+export type BillSplit = Database['public']['Tables']['bill_splits']['Row']
+export type BillSplitShare = Database['public']['Tables']['bill_split_shares']['Row']

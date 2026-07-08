@@ -8,6 +8,7 @@ import { useAuthStore } from '../../../hooks/useAuth'
 import { supabase } from '../../../lib/supabase'
 import { confirm, alert } from '../../../lib/alert'
 import { useTheme, type Colors } from '../../../lib/theme'
+import { canUseBillSplit } from '../../../lib/featureFlags'
 
 export default function ProfileScreen() {
   const { session, signOut } = useAuthStore()
@@ -110,6 +111,17 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {canUseBillSplit(session?.user.email) && (
+          <TouchableOpacity
+            style={styles.billSplitBtn}
+            onPress={() => router.push('/(app)/bill-split')}
+            accessibilityRole="button"
+            accessibilityLabel="Bill Split"
+          >
+            <Text style={styles.billSplitText}>📄 Bill Split</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={styles.signOutBtn}
           onPress={handleSignOut}
@@ -149,6 +161,13 @@ function makeStyles(C: Colors) {
     },
     saveBtnDisabled: { opacity: 0.4 },
     saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+    billSplitBtn: {
+      borderWidth: 0.5, borderColor: C.border, borderRadius: 10,
+      paddingHorizontal: 32, paddingVertical: 12,
+      minHeight: 44, justifyContent: 'center', marginBottom: 12,
+      backgroundColor: C.surface,
+    },
+    billSplitText: { fontSize: 15, color: C.textPrimary, fontWeight: '500' },
     signOutBtn: {
       borderWidth: 0.5, borderColor: C.border, borderRadius: 10,
       paddingHorizontal: 32, paddingVertical: 12,
