@@ -132,7 +132,10 @@ Deno.serve(async (req) => {
     }
 
     const anthropicJson = await anthropicRes.json()
-    const rawText: string = anthropicJson.content?.[0]?.text ?? ''
+    // Some responses lead with a `thinking` block before the actual `text`
+    // block, so the text isn't reliably at content[0].
+    const textBlock = (anthropicJson.content ?? []).find((b: { type: string }) => b.type === 'text')
+    const rawText: string = textBlock?.text ?? ''
 
     if (anthropicJson.stop_reason === 'max_tokens') {
       console.error('bill-split-parse: response truncated at max_tokens', rawText)
@@ -140,6 +143,14 @@ Deno.serve(async (req) => {
         "The model's response was cut off before finishing (this bill may have too many lines). Try again.",
         { status: 502, headers: corsHeaders }
       )
+    }
+
+    if (!rawText) {
+      console.error('bill-split-parse: no text block in response', JSON.stringify(anthropicJson.content))
+      return new Response("The model didn't return a text response. Try again.", {
+        status: 502,
+        headers: corsHeaders,
+      })
     }
 
     let extracted: {
