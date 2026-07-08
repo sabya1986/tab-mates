@@ -57,104 +57,140 @@ matching exactly this shape:
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
-  const auth = await requireBillSplitUser(req)
-  if (!auth.ok) return auth.response
-  const { supabase, userId } = auth
+  try {
+    const auth = await requireBillSplitUser(req)
+    if (!auth.ok) return auth.response
+    const { supabase, userId } = auth
 
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
-  if (!apiKey) {
-    return new Response('Bill parsing is not configured (missing ANTHROPIC_API_KEY)', {
+    const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
+    if (!apiKey) {
+      return new Response('Bill parsing is not configured (missing ANTHROPIC_API_KEY)', {
+        status: 500,
+        headers: corsHeaders,
+      })
+    }
+
+    let body: { pdfBase64?: string }
+    try {
+      body = await req.json()
+    } catch {
+      return new Response('Invalid JSON body', { status: 400, headers: corsHeaders })
+    }
+    if (!body.pdfBase64) {
+      return new Response('pdfBase64 is required', { status: 400, headers: corsHeaders })
+    }
+
+    let anthropicRes: Response
+    try {
+      // A full multi-page bill can take a while for the model to read and
+      // classify. Bound it well under the platform's own request timeout so
+      // a slow call fails with a clear message instead of a bare 502.
+      anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: ANTHROPIC_MODEL,
+          max_tokens: 4096,
+          system: SYSTEM_PROMPT,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'document',
+                  source: { type: 'base64', media_type: 'application/pdf', data: body.pdfBase64 },
+                },
+                { type: 'text', text: 'Extract this T-Mobile bill as the JSON object described in your instructions.' },
+              ],
+            },
+          ],
+        }),
+        signal: AbortSignal.timeout(100_000),
+      })
+    } catch (e) {
+      const timedOut = e instanceof Error && e.name === 'TimeoutError'
+      console.error('bill-split-parse: Anthropic fetch failed', e)
+      return new Response(
+        timedOut
+          ? 'Bill parsing timed out reading the PDF. Try again, or a shorter bill.'
+          : `Bill parsing failed to reach Anthropic: ${e instanceof Error ? e.message : String(e)}`,
+        { status: 502, headers: corsHeaders }
+      )
+    }
+
+    if (!anthropicRes.ok) {
+      const text = await anthropicRes.text()
+      console.error('bill-split-parse: Anthropic API error', anthropicRes.status, text)
+      return new Response(`Bill parsing failed (${anthropicRes.status}): ${text}`, {
+        status: 502,
+        headers: corsHeaders,
+      })
+    }
+
+    const anthropicJson = await anthropicRes.json()
+    const rawText: string = anthropicJson.content?.[0]?.text ?? ''
+
+    let extracted: {
+      billing_period: string
+      bill_total: number
+      lines: { phone_number: string; line_type: 'voice' | 'data' | 'wearable'; amount: number }[]
+      account_charges: { description: string; amount: number }[]
+      notes: string[]
+    }
+    try {
+      const jsonText = rawText.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
+      extracted = JSON.parse(jsonText)
+    } catch {
+      console.error('bill-split-parse: could not parse model response', rawText)
+      return new Response(`Could not parse the model's response as JSON:\n\n${rawText}`, {
+        status: 502,
+        headers: corsHeaders,
+      })
+    }
+
+    const { data: associations, error: assocError } = await supabase
+      .from('bill_split_associations')
+      .select('phone_number, person_name, email, line_type')
+      .eq('user_id', userId)
+    if (assocError) {
+      console.error('bill-split-parse: could not load associations', assocError)
+      return new Response(`Could not load saved line associations: ${assocError.message}`, {
+        status: 500,
+        headers: corsHeaders,
+      })
+    }
+
+    const associationByNumber = new Map((associations ?? []).map((a) => [a.phone_number, a]))
+
+    const lines = (extracted.lines ?? []).map((line) => {
+      const known = associationByNumber.get(line.phone_number)
+      return {
+        ...line,
+        person_name: known?.person_name ?? null,
+        email: known?.email ?? null,
+        matched: !!known,
+      }
+    })
+
+    return new Response(
+      JSON.stringify({
+        billing_period: extracted.billing_period,
+        bill_total: extracted.bill_total,
+        lines,
+        account_charges: extracted.account_charges ?? [],
+        notes: extracted.notes ?? [],
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  } catch (e) {
+    console.error('bill-split-parse: unhandled error', e)
+    return new Response(`Unexpected error: ${e instanceof Error ? e.message : String(e)}`, {
       status: 500,
       headers: corsHeaders,
     })
   }
-
-  let body: { pdfBase64?: string }
-  try {
-    body = await req.json()
-  } catch {
-    return new Response('Invalid JSON body', { status: 400, headers: corsHeaders })
-  }
-  if (!body.pdfBase64) {
-    return new Response('pdfBase64 is required', { status: 400, headers: corsHeaders })
-  }
-
-  const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'document',
-              source: { type: 'base64', media_type: 'application/pdf', data: body.pdfBase64 },
-            },
-            { type: 'text', text: 'Extract this T-Mobile bill as the JSON object described in your instructions.' },
-          ],
-        },
-      ],
-    }),
-  })
-
-  if (!anthropicRes.ok) {
-    const text = await anthropicRes.text()
-    return new Response(`Bill parsing failed: ${text}`, { status: 502, headers: corsHeaders })
-  }
-
-  const anthropicJson = await anthropicRes.json()
-  const rawText: string = anthropicJson.content?.[0]?.text ?? ''
-
-  let extracted: {
-    billing_period: string
-    bill_total: number
-    lines: { phone_number: string; line_type: 'voice' | 'data' | 'wearable'; amount: number }[]
-    account_charges: { description: string; amount: number }[]
-    notes: string[]
-  }
-  try {
-    const jsonText = rawText.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
-    extracted = JSON.parse(jsonText)
-  } catch {
-    return new Response(`Could not parse the model's response as JSON:\n\n${rawText}`, {
-      status: 502,
-      headers: corsHeaders,
-    })
-  }
-
-  const { data: associations } = await supabase
-    .from('bill_split_associations')
-    .select('phone_number, person_name, email, line_type')
-    .eq('user_id', userId)
-
-  const associationByNumber = new Map((associations ?? []).map((a) => [a.phone_number, a]))
-
-  const lines = (extracted.lines ?? []).map((line) => {
-    const known = associationByNumber.get(line.phone_number)
-    return {
-      ...line,
-      person_name: known?.person_name ?? null,
-      email: known?.email ?? null,
-      matched: !!known,
-    }
-  })
-
-  return new Response(
-    JSON.stringify({
-      billing_period: extracted.billing_period,
-      bill_total: extracted.bill_total,
-      lines,
-      account_charges: extracted.account_charges ?? [],
-      notes: extracted.notes ?? [],
-    }),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  )
 })

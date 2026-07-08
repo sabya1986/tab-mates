@@ -35,6 +35,18 @@ function renderEmailHtml(opts: {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
+  try {
+    return await handle(req)
+  } catch (e) {
+    console.error('bill-split-send: unhandled error', e)
+    return new Response(`Unexpected error: ${e instanceof Error ? e.message : String(e)}`, {
+      status: 500,
+      headers: corsHeaders,
+    })
+  }
+})
+
+async function handle(req: Request): Promise<Response> {
   const auth = await requireBillSplitUser(req)
   if (!auth.ok) return auth.response
   const { supabase } = auth
@@ -117,4 +129,4 @@ Deno.serve(async (req) => {
   return new Response(JSON.stringify({ results }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
-})
+}

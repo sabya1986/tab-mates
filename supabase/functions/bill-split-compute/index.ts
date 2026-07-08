@@ -9,6 +9,18 @@ import { computeSplit, type ComputeInput } from '../_shared/computeSplit.ts'
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
+  try {
+    return await handle(req)
+  } catch (e) {
+    console.error('bill-split-compute: unhandled error', e)
+    return new Response(`Unexpected error: ${e instanceof Error ? e.message : String(e)}`, {
+      status: 500,
+      headers: corsHeaders,
+    })
+  }
+})
+
+async function handle(req: Request): Promise<Response> {
   const auth = await requireBillSplitUser(req)
   if (!auth.ok) return auth.response
   const { supabase, userId } = auth
@@ -119,4 +131,4 @@ Deno.serve(async (req) => {
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   )
-})
+}
