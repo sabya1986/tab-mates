@@ -27,17 +27,20 @@ export default function ProfileScreen() {
   }, [])
 
   async function loadProfile() {
-    if (!session?.user.id) return
-    const { data } = await supabase
-      .from('users')
-      .select('name')
-      .eq('id', session.user.id)
-      .single()
-    if (data) {
-      setName(data.name)
-      setSavedName(data.name)
+    if (!session?.user.id) { setLoading(false); return }
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('name')
+        .eq('id', session.user.id)
+        .single()
+      if (data) {
+        setName(data.name)
+        setSavedName(data.name)
+      }
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   async function handleSaveName() {
