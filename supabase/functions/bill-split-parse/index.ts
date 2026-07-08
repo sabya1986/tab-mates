@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
             },
           ],
         }),
-        signal: AbortSignal.timeout(100_000),
+        signal: AbortSignal.timeout(140_000),
       })
     } catch (e) {
       const timedOut = e instanceof Error && e.name === 'TimeoutError'
