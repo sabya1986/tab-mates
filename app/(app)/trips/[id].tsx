@@ -92,6 +92,9 @@ export default function TripDetailScreen() {
     const iPaid = item.paid_by === currentUserId
     const payerName = members.find((m) => m.id === item.paid_by)?.name ?? 'member'
     const wasEdited = new Date(item.updated_at).getTime() - new Date(item.created_at).getTime() > 1000
+    const editorName = item.updated_by === currentUserId
+      ? 'you'
+      : members.find((m) => m.id === item.updated_by)?.name ?? 'member'
 
     return (
       <TouchableOpacity
@@ -107,7 +110,7 @@ export default function TripDetailScreen() {
           <Text style={styles.expenseName}>{item.description}</Text>
           <Text style={styles.expenseMeta}>
             {iPaid ? 'You paid' : `Paid by ${payerName}`} · {item.expense_date}
-            {wasEdited && ` · edited ${timeAgo(item.updated_at)}`}
+            {wasEdited && ` · edited ${timeAgo(item.updated_at)} by ${editorName}`}
           </Text>
         </View>
         <View style={styles.expenseRight}>
