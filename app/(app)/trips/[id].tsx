@@ -89,6 +89,7 @@ export default function TripDetailScreen() {
   function renderExpense({ item }: { item: ExpenseWithSplits }) {
     const myShare = item.splits.find((s) => s.user_id === currentUserId)?.amount ?? 0
     const iPaid = item.paid_by === currentUserId
+    const payerName = members.find((m) => m.id === item.paid_by)?.name ?? 'member'
 
     return (
       <TouchableOpacity
@@ -103,7 +104,7 @@ export default function TripDetailScreen() {
         <View style={styles.expenseLeft}>
           <Text style={styles.expenseName}>{item.description}</Text>
           <Text style={styles.expenseMeta}>
-            {iPaid ? 'You paid' : 'Paid by member'} · {item.expense_date}
+            {iPaid ? 'You paid' : `Paid by ${payerName}`} · {item.expense_date}
           </Text>
         </View>
         <View style={styles.expenseRight}>
