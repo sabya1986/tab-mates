@@ -82,7 +82,10 @@ export type Database = {
           amount: number
           split_method: 'equal' | 'exact' | 'percentage' | 'shares'
           expense_date: string
+          created_by: string
+          updated_by: string
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -103,6 +106,23 @@ export type Database = {
           split_method?: 'equal' | 'exact' | 'percentage' | 'shares'
           expense_date?: string
         }
+        Relationships: []
+      }
+      expense_history: {
+        Row: {
+          id: string
+          expense_id: string
+          description: string
+          category: string | null
+          amount: number
+          paid_by: string
+          split_method: 'equal' | 'exact' | 'percentage' | 'shares'
+          expense_date: string
+          changed_by: string
+          changed_at: string
+        }
+        Insert: never
+        Update: never
         Relationships: []
       }
       expense_splits: {
@@ -270,6 +290,7 @@ export type User = Database['public']['Tables']['users']['Row']
 export type Trip = Database['public']['Tables']['trips']['Row']
 export type TripMember = Database['public']['Tables']['trip_members']['Row']
 export type Expense = Database['public']['Tables']['expenses']['Row']
+export type ExpenseHistory = Database['public']['Tables']['expense_history']['Row']
 export type ExpenseSplit = Database['public']['Tables']['expense_splits']['Row']
 export type Payment = Database['public']['Tables']['payments']['Row']
 export type TripInvite = Database['public']['Tables']['trip_invites']['Row']

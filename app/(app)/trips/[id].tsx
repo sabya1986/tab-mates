@@ -10,6 +10,7 @@ import { usePaymentsStore } from '../../../hooks/usePayments'
 import { useBalances } from '../../../hooks/useBalances'
 import { useAuthStore } from '../../../hooks/useAuth'
 import { useTheme, type Colors } from '../../../lib/theme'
+import { timeAgo } from '../../../hooks/useActivity'
 import type { Trip, User } from '../../../lib/types'
 import type { ExpenseWithSplits } from '../../../hooks/useExpenses'
 
@@ -90,6 +91,7 @@ export default function TripDetailScreen() {
     const myShare = item.splits.find((s) => s.user_id === currentUserId)?.amount ?? 0
     const iPaid = item.paid_by === currentUserId
     const payerName = members.find((m) => m.id === item.paid_by)?.name ?? 'member'
+    const wasEdited = new Date(item.updated_at).getTime() - new Date(item.created_at).getTime() > 1000
 
     return (
       <TouchableOpacity
@@ -105,6 +107,7 @@ export default function TripDetailScreen() {
           <Text style={styles.expenseName}>{item.description}</Text>
           <Text style={styles.expenseMeta}>
             {iPaid ? 'You paid' : `Paid by ${payerName}`} · {item.expense_date}
+            {wasEdited && ` · edited ${timeAgo(item.updated_at)}`}
           </Text>
         </View>
         <View style={styles.expenseRight}>

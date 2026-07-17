@@ -36,8 +36,7 @@ export const useExpensesStore = create<ExpensesStore>((set) => ({
       .from('expenses')
       .select('*, expense_splits(*)')
       .eq('trip_id', tripId)
-      .order('expense_date', { ascending: false })
-      .order('created_at', { ascending: false })
+      .order('updated_at', { ascending: false })
 
     if (!error && data) {
       set({
@@ -87,7 +86,7 @@ export const useExpensesStore = create<ExpensesStore>((set) => ({
   },
 
   updateExpense: async ({ expenseId, description, amount, paidBy, splitMethod, splits, expenseDate }) => {
-    const { error: updateError } = await supabase
+    const { data: expense, error: updateError } = await supabase
       .from('expenses')
       .update({
         description,
@@ -97,8 +96,10 @@ export const useExpensesStore = create<ExpensesStore>((set) => ({
         expense_date: expenseDate ?? new Date().toISOString().split('T')[0],
       })
       .eq('id', expenseId)
+      .select()
+      .single()
 
-    if (updateError) return false
+    if (updateError || !expense) return false
 
     await supabase.from('expense_splits').delete().eq('expense_id', expenseId)
 
@@ -112,25 +113,19 @@ export const useExpensesStore = create<ExpensesStore>((set) => ({
 
     if (splitsError) return false
 
+    const updated: ExpenseWithSplits = {
+      ...expense,
+      splits: splits.map((s) => ({
+        id: '',
+        expense_id: expenseId,
+        user_id: s.userId,
+        amount: s.amount,
+        is_settled: false,
+      })),
+    }
+
     set((state) => ({
-      expenses: state.expenses.map((e) =>
-        e.id === expenseId
-          ? {
-              ...e,
-              description,
-              amount,
-              paid_by: paidBy,
-              split_method: splitMethod,
-              splits: splits.map((s) => ({
-                id: '',
-                expense_id: expenseId,
-                user_id: s.userId,
-                amount: s.amount,
-                is_settled: false,
-              })),
-            }
-          : e
-      ),
+      expenses: [updated, ...state.expenses.filter((e) => e.id !== expenseId)],
     }))
     return true
   },
